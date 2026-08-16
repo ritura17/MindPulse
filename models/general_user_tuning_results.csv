@@ -1,0 +1,4 @@
+Model,CV Balanced Accuracy,Accuracy,Precision,Recall,F1 Score,ROC-AUC,Balanced Accuracy,Best Parameters
+Logistic Regression,0.5513388380967214,0.5815,0.9389179755671903,0.5838307107976126,0.7199732351957177,0.5815462880722722,0.5689854190930739,"{'model__C': 0.01, 'model__class_weight': 'balanced'}"
+Random Forest,0.5593503970375767,0.6635,0.9405120481927711,0.6776994031470429,0.7877641122674235,0.6102691886324912,0.5872573448856233,"{'model__class_weight': 'balanced', 'model__max_depth': 5, 'model__min_samples_leaf': 1, 'model__n_estimators': 200}"
+Gradient Boosting,0.49993216659883327,0.9215,0.9215,1.0,0.9591465001301067,0.59315329824331,0.5,"{'model__learning_rate': 0.03, 'model__max_depth': 2, 'model__n_estimators': 100}"
