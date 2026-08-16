@@ -17,7 +17,7 @@ Users enter information about themselves, and MindPulse uses trained machine-lea
 
 ## 🚀 Try MindPulse Online
 
-👉 **[Open the MindPulse Web App](https://mindpulse-et9wcsn3fbyfkqgyvitgek.streamlit.app/)**
+👉 **[Open the MindPulse Web App]https://mindpulse-p4lcurtpaphgl7pozyhpg7.streamlit.app/
 
 The application is deployed using **Streamlit Community Cloud** and can be accessed directly through a web browser.
 
@@ -780,7 +780,7 @@ The application will open in your browser.
 
 You can use the deployed application here:
 
-👉 **https://mindpulse-et9wcsn3fbyfkqgyvitgek.streamlit.app/**
+(https://mindpulse-p4lcurtpaphgl7pozyhpg7.streamlit.app/)
 
 Recommended flow:
 
@@ -940,12 +940,6 @@ GitHub:
 
 If you find this project useful or interesting, consider giving the repository a ⭐ on GitHub.
 
-### 🔗 Links
-
-* 🌐 **[Live MindPulse App](https://mindpulse-et9wcsn3fbyfkqgyvitgek.streamlit.app/)**
-* 💻 **[GitHub Repository](https://github.com/ritura17/Mindpulse)**
-
----
 
 # ⚠️ Final Disclaimer
 
