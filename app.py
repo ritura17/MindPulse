@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
 import os
-
 
 # ============================================================
 # MINDPULSE - MENTAL HEALTH & STRESS ANALYSIS
@@ -14,120 +14,555 @@ st.set_page_config(
     layout="wide"
 )
 
-
 # ============================================================
-# CUSTOM CSS
-# ============================================================
-
-st.markdown("""
-<style>
-
-.main-title {
-    font-size: 42px;
-    font-weight: bold;
-    text-align: center;
-}
-
-.subtitle {
-    font-size: 18px;
-    text-align: center;
-    color: #666;
-    margin-bottom: 30px;
-}
-
-.result-box {
-    padding: 25px;
-    border-radius: 12px;
-    text-align: center;
-    margin-top: 20px;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-
-# ============================================================
-# TITLE
+# PATHS
 # ============================================================
 
-st.markdown(
-    '<div class="main-title">🧠 MindPulse</div>',
-    unsafe_allow_html=True
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+MODEL_DIR = os.path.join(BASE_DIR, "models")
+
+STUDENT_MODEL_PATH = os.path.join(
+    MODEL_DIR, "student_stress_model.pkl"
 )
 
-st.markdown(
-    '<div class="subtitle">Mental Health & Behavioral Risk Analysis</div>',
-    unsafe_allow_html=True
+STUDENT_FEATURES_PATH = os.path.join(
+    MODEL_DIR, "student_features.pkl"
+)
+
+GENERAL_MODEL_PATH = os.path.join(
+    MODEL_DIR, "general_user_tuned_model.pkl"
+)
+
+GENERAL_FEATURES_PATH = os.path.join(
+    MODEL_DIR, "general_user_tuned_features.pkl"
+)
+
+THRESHOLD_PATH = os.path.join(
+    MODEL_DIR, "general_user_tuned_threshold.pkl"
 )
 
 
 # ============================================================
-# MODEL PATHS
-# ============================================================
-
-GENERAL_MODEL_PATH = "models/general_user_tuned_model.pkl"
-GENERAL_FEATURES_PATH = "models/general_user_tuned_features.pkl"
-GENERAL_THRESHOLD_PATH = "models/general_user_tuned_threshold.pkl"
-
-STUDENT_MODEL_PATH = "models/student_stress_model.pkl"
-STUDENT_FEATURES_PATH = "models/student_features.pkl"
-
-
-# ============================================================
-# LOAD GENERAL USER MODEL
+# LOAD MODEL
 # ============================================================
 
 @st.cache_resource
-def load_general_model():
+def load_model(path):
+    if not os.path.exists(path):
+        return None
 
-    model = joblib.load(GENERAL_MODEL_PATH)
-    features = joblib.load(GENERAL_FEATURES_PATH)
-    threshold = joblib.load(GENERAL_THRESHOLD_PATH)
+    return joblib.load(path)
 
-    return model, features, threshold
+
+@st.cache_resource
+def load_features(path):
+    if not os.path.exists(path):
+        return None
+
+    return joblib.load(path)
 
 
 # ============================================================
 # LOAD STUDENT MODEL
 # ============================================================
 
-@st.cache_resource
-def load_student_model():
+student_model = load_model(STUDENT_MODEL_PATH)
+student_features = load_features(STUDENT_FEATURES_PATH)
 
-    model = joblib.load(STUDENT_MODEL_PATH)
-    features = joblib.load(STUDENT_FEATURES_PATH)
 
-    return model, features
+# ============================================================
+# LOAD GENERAL USER MODEL
+# ============================================================
+
+general_model = load_model(GENERAL_MODEL_PATH)
+general_features = load_features(GENERAL_FEATURES_PATH)
+
+
+# ============================================================
+# LOAD GENERAL USER THRESHOLD
+# ============================================================
+
+general_threshold = 0.50
+
+if os.path.exists(THRESHOLD_PATH):
+    try:
+        loaded_threshold = joblib.load(THRESHOLD_PATH)
+
+        if isinstance(loaded_threshold, (int, float)):
+            general_threshold = float(loaded_threshold)
+
+        elif isinstance(loaded_threshold, dict):
+            if "threshold" in loaded_threshold:
+                general_threshold = float(
+                    loaded_threshold["threshold"]
+                )
+
+    except Exception:
+        general_threshold = 0.50
+
+
+# ============================================================
+# HEADER
+# ============================================================
+
+st.title("🧠 MindPulse")
+
+st.markdown(
+    """
+    ### Mental Health & Stress Analysis Platform
+
+    MindPulse analyzes behavioral and lifestyle information
+    to estimate stress or mental-health risk.
+
+    **Choose your profile below to begin.**
+    """
+)
+
+st.divider()
 
 
 # ============================================================
 # SIDEBAR
 # ============================================================
 
-st.sidebar.title("🧭 MindPulse")
+st.sidebar.title("🧠 MindPulse")
 
-user_type = st.sidebar.radio(
-    "Select User Type",
+analysis_type = st.sidebar.radio(
+    "Select Analysis",
     [
-        "General User",
-        "Student"
+        "👨‍🎓 Student Stress Analysis",
+        "👤 General User Analysis"
     ]
 )
 
 
 # ============================================================
-# GENERAL USER
+# STUDENT SECTION
 # ============================================================
 
-if user_type == "General User":
+if analysis_type == "👨‍🎓 Student Stress Analysis":
+
+    st.header("👨‍🎓 Student Stress Analysis")
+
+    st.info(
+        "Enter your academic, lifestyle and social information "
+        "to estimate your student stress level."
+    )
+
+    if student_model is None or student_features is None:
+
+        st.error(
+            "Student model or feature file was not found."
+        )
+
+        st.write(
+            "Expected files:"
+        )
+
+        st.code(
+            """
+models/student_stress_model.pkl
+models/student_features.pkl
+            """
+        )
+
+        st.stop()
+
+    # --------------------------------------------------------
+    # STUDENT INPUTS
+    # --------------------------------------------------------
+
+    st.subheader("📚 Academic Information")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        academic_performance = st.slider(
+            "Academic Performance",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+        study_load = st.slider(
+            "Study Load",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+        future_career_concerns = st.slider(
+            "Future Career Concerns",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+        teacher_student_relationship = st.slider(
+            "Teacher-Student Relationship",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+    with col2:
+
+        peer_pressure = st.slider(
+            "Peer Pressure",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+        extracurricular_activities = st.slider(
+            "Extracurricular Activities",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+        bullying = st.slider(
+            "Bullying",
+            min_value=0,
+            max_value=10,
+            value=0
+        )
+
+        self_esteem = st.slider(
+            "Self Esteem",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+    # --------------------------------------------------------
+
+    st.subheader("🧠 Mental & Physical Wellbeing")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        mental_health_history = st.selectbox(
+            "Mental Health History",
+            [0, 1],
+            format_func=lambda x:
+                "No" if x == 0 else "Yes"
+        )
+
+        sleep_quality = st.slider(
+            "Sleep Quality",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+        breathing_problem = st.slider(
+            "Breathing Problem",
+            min_value=0,
+            max_value=10,
+            value=0
+        )
+
+        blood_pressure = st.slider(
+            "Blood Pressure",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+    with col2:
+
+        noise_level = st.slider(
+            "Noise Level",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+        living_conditions = st.slider(
+            "Living Conditions",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+        safety = st.slider(
+            "Safety",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+        basic_needs = st.slider(
+            "Basic Needs",
+            min_value=0,
+            max_value=10,
+            value=5
+        )
+
+    # --------------------------------------------------------
+
+    st.subheader("🤝 Social Support")
+
+    social_support = st.slider(
+        "Social Support",
+        min_value=0,
+        max_value=10,
+        value=5
+    )
+
+    # ========================================================
+    # STUDENT PREDICTION
+    # ========================================================
+
+    st.divider()
+
+    if st.button(
+        "🔍 Analyze Student Stress",
+        type="primary",
+        use_container_width=True
+    ):
+
+        try:
+
+            # ------------------------------------------------
+            # CREATE INPUT DATA
+            # ------------------------------------------------
+
+            student_input = pd.DataFrame({
+
+                "self_esteem": [
+                    self_esteem
+                ],
+
+                "mental_health_history": [
+                    mental_health_history
+                ],
+
+                "blood_pressure": [
+                    blood_pressure
+                ],
+
+                "sleep_quality": [
+                    sleep_quality
+                ],
+
+                "breathing_problem": [
+                    breathing_problem
+                ],
+
+                "noise_level": [
+                    noise_level
+                ],
+
+                "living_conditions": [
+                    living_conditions
+                ],
+
+                "safety": [
+                    safety
+                ],
+
+                "basic_needs": [
+                    basic_needs
+                ],
+
+                "academic_performance": [
+                    academic_performance
+                ],
+
+                "study_load": [
+                    study_load
+                ],
+
+                "teacher_student_relationship": [
+                    teacher_student_relationship
+                ],
+
+                "future_career_concerns": [
+                    future_career_concerns
+                ],
+
+                "social_support": [
+                    social_support
+                ],
+
+                "peer_pressure": [
+                    peer_pressure
+                ],
+
+                "extracurricular_activities": [
+                    extracurricular_activities
+                ],
+
+                "bullying": [
+                    bullying
+                ]
+            })
+
+            # ------------------------------------------------
+            # CHECK REQUIRED FEATURES
+            # ------------------------------------------------
+
+            if isinstance(student_features, list):
+
+                missing_features = [
+                    feature
+                    for feature in student_features
+                    if feature not in student_input.columns
+                ]
+
+                if missing_features:
+
+                    st.error(
+                        "Student model expects features that are "
+                        "not present in the app input."
+                    )
+
+                    st.write(
+                        "Missing features:"
+                    )
+
+                    st.write(missing_features)
+
+                    st.stop()
+
+                # Arrange columns in exact model order
+
+                student_input = student_input[
+                    student_features
+                ]
+
+            # ------------------------------------------------
+            # PREDICTION
+            # ------------------------------------------------
+
+            prediction = student_model.predict(
+                student_input
+            )[0]
+
+            # ------------------------------------------------
+            # RESULT
+            # ------------------------------------------------
+
+            st.subheader("📊 Student Stress Result")
+
+            # Handle numeric labels
+
+            if prediction == 0:
+
+                st.success(
+                    "🟢 Low Stress Level"
+                )
+
+                st.write(
+                    "The model estimates a relatively low "
+                    "stress level based on the information provided."
+                )
+
+            elif prediction == 1:
+
+                st.warning(
+                    "🟡 Moderate Stress Level"
+                )
+
+                st.write(
+                    "The model estimates a moderate stress level."
+                )
+
+            elif prediction == 2:
+
+                st.error(
+                    "🔴 High Stress Level"
+                )
+
+                st.write(
+                    "The model estimates a high stress level."
+                )
+
+            else:
+
+                st.info(
+                    f"Predicted Stress Class: {prediction}"
+                )
+
+            # ------------------------------------------------
+            # PROBABILITY
+            # ------------------------------------------------
+
+            if hasattr(
+                student_model,
+                "predict_proba"
+            ):
+
+                probabilities = (
+                    student_model.predict_proba(
+                        student_input
+                    )[0]
+                )
+
+                st.subheader(
+                    "Prediction Probability"
+                )
+
+                probability_df = pd.DataFrame(
+                    {
+                        "Stress Level": [
+                            f"Class {i}"
+                            for i in range(
+                                len(probabilities)
+                            )
+                        ],
+                        "Probability": [
+                            f"{p * 100:.2f}%"
+                            for p in probabilities
+                        ]
+                    }
+                )
+
+                st.table(
+                    probability_df
+                )
+
+        except Exception as e:
+
+            st.error(
+                "Student prediction failed."
+            )
+
+            st.exception(e)
+
+
+# ============================================================
+# GENERAL USER SECTION
+# ============================================================
+
+else:
 
     st.header("👤 General User Mental Health Analysis")
 
     st.info(
-        "Enter your lifestyle, work and social information. "
-        "MindPulse will estimate your mental-health risk based "
-        "on the trained machine-learning model."
+        "Enter general lifestyle and behavioral information "
+        "to estimate the likelihood of a mental health issue."
     )
+
+    if general_model is None or general_features is None:
+
+        st.error(
+            "General user model or feature file was not found."
+        )
+
+        st.code(
+            """
+models/general_user_tuned_model.pkl
+models/general_user_tuned_features.pkl
+            """
+        )
+
+        st.stop()
 
     # --------------------------------------------------------
     # PERSONAL INFORMATION
@@ -141,7 +576,7 @@ if user_type == "General User":
 
         age = st.number_input(
             "Age",
-            min_value=18,
+            min_value=10,
             max_value=100,
             value=25
         )
@@ -178,13 +613,19 @@ if user_type == "General User":
             ]
         )
 
-        work_hours = st.number_input(
+        work_hours = st.slider(
             "Work Hours Per Week",
-            min_value=0.0,
-            max_value=100.0,
-            value=40.0
+            0,
+            100,
+            40
         )
 
+        job_satisfaction = st.slider(
+            "Job Satisfaction",
+            0,
+            10,
+            5
+        )
 
     # --------------------------------------------------------
     # WORK & LIFESTYLE
@@ -192,31 +633,22 @@ if user_type == "General User":
 
     st.subheader("💼 Work & Lifestyle")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
 
     with col1:
 
-        job_satisfaction = st.slider(
-            "Job Satisfaction",
-            1.0,
-            10.0,
-            5.0
-        )
-
         work_stress = st.slider(
             "Work Stress Level",
-            1.0,
-            10.0,
-            5.0
+            0,
+            10,
+            5
         )
-
-    with col2:
 
         work_life_balance = st.slider(
             "Work-Life Balance",
-            1.0,
-            10.0,
-            5.0
+            0,
+            10,
+            5
         )
 
         exercise = st.selectbox(
@@ -229,117 +661,106 @@ if user_type == "General User":
             ]
         )
 
-    with col3:
-
-        sleep_hours = st.number_input(
+        sleep_hours = st.slider(
             "Sleep Hours Per Night",
-            min_value=0.0,
-            max_value=24.0,
-            value=7.0
-        )
-
-        screen_time = st.number_input(
-            "Screen Time Hours Per Day",
-            min_value=0.0,
-            max_value=24.0,
-            value=6.0
-        )
-
-
-    # --------------------------------------------------------
-    # DIGITAL & PERSONAL HABITS
-    # --------------------------------------------------------
-
-    st.subheader("📱 Digital & Personal Habits")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-
-        social_media = st.number_input(
-            "Social Media Hours Per Day",
-            min_value=0.0,
-            max_value=24.0,
-            value=3.0
-        )
-
-        hobby_time = st.number_input(
-            "Hobby Time Hours Per Week",
-            min_value=0.0,
-            max_value=100.0,
-            value=5.0
+            0.0,
+            15.0,
+            7.0,
+            0.1
         )
 
     with col2:
 
+        screen_time = st.slider(
+            "Screen Time Per Day (Hours)",
+            0.0,
+            24.0,
+            7.0,
+            0.1
+        )
+
+        social_media = st.slider(
+            "Social Media Per Day (Hours)",
+            0.0,
+            24.0,
+            3.0,
+            0.1
+        )
+
+        hobby_time = st.slider(
+            "Hobby Time Per Week (Hours)",
+            0.0,
+            50.0,
+            5.0,
+            0.1
+        )
+
+    # --------------------------------------------------------
+    # SOCIAL & FINANCIAL
+    # --------------------------------------------------------
+
+    st.subheader("🤝 Social & Financial Wellbeing")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
         financial_stress = st.slider(
             "Financial Stress",
-            1.0,
-            10.0,
-            5.0
+            0,
+            10,
+            5
         )
 
         social_support = st.slider(
             "Social Support",
-            1.0,
-            10.0,
-            5.0
+            0,
+            10,
+            5
         )
-
-    with col3:
 
         close_friends = st.number_input(
             "Close Friends Count",
             min_value=0,
-            max_value=100,
+            max_value=50,
             value=4
         )
 
+    with col2:
+
         feel_understood = st.slider(
             "Feel Understood",
-            1.0,
-            10.0,
-            5.0
+            0,
+            10,
+            5
         )
 
-
-    # --------------------------------------------------------
-    # LONELINESS
-    # --------------------------------------------------------
-
-    st.subheader("🤝 Social Well-being")
-
-    loneliness = st.slider(
-        "Loneliness Level",
-        1.0,
-        10.0,
-        5.0
-    )
-
+        loneliness = st.slider(
+            "Loneliness",
+            0,
+            10,
+            5
+        )
 
     # ========================================================
-    # PREDICTION
+    # GENERAL USER PREDICTION
     # ========================================================
 
     st.divider()
 
-    predict_button = st.button(
-        "🔍 Analyze My Mental Health",
+    if st.button(
+        "🔍 Analyze Mental Health Risk",
+        type="primary",
         use_container_width=True
-    )
-
-
-    if predict_button:
+    ):
 
         try:
 
-            model, feature_names, threshold = load_general_model()
-
             # ------------------------------------------------
-            # CREATE INPUT DATAFRAME
+            # CREATE INPUT DATA
             # ------------------------------------------------
 
-            input_data = pd.DataFrame({
+            general_input = pd.DataFrame({
 
                 "Age": [age],
 
@@ -347,234 +768,223 @@ if user_type == "General User":
 
                 "Income_Level": [income_level],
 
-                "Employment_Status": [employment_status],
+                "Employment_Status": [
+                    employment_status
+                ],
 
-                "Work_Hours_Per_Week": [work_hours],
+                "Work_Hours_Per_Week": [
+                    work_hours
+                ],
 
-                "Job_Satisfaction": [job_satisfaction],
+                "Job_Satisfaction": [
+                    job_satisfaction
+                ],
 
-                "Work_Stress_Level": [work_stress],
+                "Work_Stress_Level": [
+                    work_stress
+                ],
 
-                "Work_Life_Balance": [work_life_balance],
+                "Work_Life_Balance": [
+                    work_life_balance
+                ],
 
-                "Exercise_Per_Week": [exercise],
+                "Exercise_Per_Week": [
+                    exercise
+                ],
 
-                "Sleep_Hours_Night": [sleep_hours],
+                "Sleep_Hours_Night": [
+                    sleep_hours
+                ],
 
-                "Screen_Time_Hours_Day": [screen_time],
+                "Screen_Time_Hours_Day": [
+                    screen_time
+                ],
 
-                "Social_Media_Hours_Day": [social_media],
+                "Social_Media_Hours_Day": [
+                    social_media
+                ],
 
-                "Hobby_Time_Hours_Week": [hobby_time],
+                "Hobby_Time_Hours_Week": [
+                    hobby_time
+                ],
 
-                "Financial_Stress": [financial_stress],
+                "Financial_Stress": [
+                    financial_stress
+                ],
 
-                "Social_Support": [social_support],
+                "Social_Support": [
+                    social_support
+                ],
 
-                "Close_Friends_Count": [close_friends],
+                "Close_Friends_Count": [
+                    close_friends
+                ],
 
-                "Feel_Understood": [feel_understood],
+                "Feel_Understood": [
+                    feel_understood
+                ],
 
-                "Loneliness": [loneliness]
+                "Loneliness": [
+                    loneliness
+                ]
             })
 
-
             # ------------------------------------------------
-            # ENSURE CORRECT FEATURE ORDER
-            # ------------------------------------------------
-
-            input_data = input_data[feature_names]
-
-
-            # ------------------------------------------------
-            # PREDICT PROBABILITY
+            # CHECK FEATURES
             # ------------------------------------------------
 
-            probability = model.predict_proba(
-                input_data
-            )[0][1]
+            if isinstance(
+                general_features,
+                list
+            ):
 
+                missing_features = [
+                    feature
+                    for feature in general_features
+                    if feature not in general_input.columns
+                ]
+
+                if missing_features:
+
+                    st.error(
+                        "General user model expects "
+                        "features that are missing."
+                    )
+
+                    st.write(
+                        missing_features
+                    )
+
+                    st.stop()
+
+                general_input = general_input[
+                    general_features
+                ]
 
             # ------------------------------------------------
-            # APPLY SAVED THRESHOLD
+            # PREDICTION
             # ------------------------------------------------
 
-            prediction = int(
-                probability >= threshold
+            if hasattr(
+                general_model,
+                "predict_proba"
+            ):
+
+                probabilities = (
+                    general_model.predict_proba(
+                        general_input
+                    )[0]
+                )
+
+                # Probability of class 1
+
+                if len(probabilities) == 2:
+
+                    mental_health_probability = (
+                        probabilities[1]
+                    )
+
+                else:
+
+                    mental_health_probability = (
+                        max(probabilities)
+                    )
+
+                prediction = (
+                    1
+                    if mental_health_probability
+                    >= general_threshold
+                    else 0
+                )
+
+            else:
+
+                prediction = general_model.predict(
+                    general_input
+                )[0]
+
+                mental_health_probability = (
+                    float(prediction)
+                )
+
+            # ------------------------------------------------
+            # RESULT
+            # ------------------------------------------------
+
+            st.subheader(
+                "📊 Mental Health Risk Result"
             )
 
+            probability_percentage = (
+                mental_health_probability * 100
+            )
 
-            probability_percent = probability * 100
-
-
-            # =================================================
-            # DISPLAY RESULT
-            # =================================================
-
-            st.subheader("📊 MindPulse Result")
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-
-                st.metric(
-                    "Mental Health Issue Probability",
-                    f"{probability_percent:.2f}%"
-                )
-
-            with col2:
-
-                st.metric(
-                    "Decision Threshold",
-                    f"{threshold:.2f}"
-                )
-
+            st.metric(
+                "Estimated Risk Probability",
+                f"{probability_percentage:.2f}%"
+            )
 
             # ------------------------------------------------
-            # RESULT MESSAGE
+            # RISK LEVEL
+            # ------------------------------------------------
+
+            if probability_percentage < 30:
+
+                st.success(
+                    "🟢 Lower Estimated Risk"
+                )
+
+            elif probability_percentage < 60:
+
+                st.warning(
+                    "🟡 Moderate Estimated Risk"
+                )
+
+            else:
+
+                st.error(
+                    "🔴 Higher Estimated Risk"
+                )
+
+            # ------------------------------------------------
+            # MODEL PREDICTION
             # ------------------------------------------------
 
             if prediction == 1:
 
                 st.error(
-                    "⚠️ Higher Mental Health Risk Detected"
-                )
-
-                st.write(
-                    "The model estimates a higher likelihood "
-                    "of a mental-health issue based on the "
-                    "information provided."
+                    "⚠️ Model Prediction: "
+                    "Mental Health Issue Likely"
                 )
 
             else:
 
                 st.success(
-                    "✅ Lower Mental Health Risk Detected"
+                    "✅ Model Prediction: "
+                    "Mental Health Issue Less Likely"
                 )
-
-                st.write(
-                    "The model estimates a lower likelihood "
-                    "of a mental-health issue based on the "
-                    "information provided."
-                )
-
 
             # ------------------------------------------------
-            # BEHAVIORAL FACTORS
-            # ------------------------------------------------
-
-            st.subheader("🔎 Behavioral Indicators")
-
-            risk_factors = []
-
-            if work_stress >= 7:
-                risk_factors.append(
-                    "High work stress"
-                )
-
-            if financial_stress >= 7:
-                risk_factors.append(
-                    "High financial stress"
-                )
-
-            if loneliness >= 7:
-                risk_factors.append(
-                    "High loneliness"
-                )
-
-            if social_support <= 3:
-                risk_factors.append(
-                    "Low social support"
-                )
-
-            if sleep_hours < 6:
-                risk_factors.append(
-                    "Low sleep duration"
-                )
-
-            if social_media >= 7:
-                risk_factors.append(
-                    "High social media usage"
-                )
-
-
-            if risk_factors:
-
-                for factor in risk_factors:
-
-                    st.warning(
-                        f"• {factor}"
-                    )
-
-            else:
-
-                st.success(
-                    "No major behavioral risk indicators "
-                    "were detected from the entered values."
-                )
-
-
-            # ------------------------------------------------
-            # DISCLAIMER
+            # IMPORTANT DISCLAIMER
             # ------------------------------------------------
 
             st.info(
-                "⚠️ MindPulse is an educational machine-learning "
-                "project and is not a medical diagnostic tool. "
-                "The prediction should not be used as a substitute "
-                "for professional medical advice."
+                """
+                **Important:** MindPulse provides a machine-learning
+                based estimate for educational and analytical purposes.
+                It is not a medical diagnosis. If you are concerned
+                about your mental health, consider speaking with a
+                qualified mental-health professional.
+                """
             )
-
 
         except Exception as e:
 
             st.error(
-                "Unable to make prediction."
+                "General user prediction failed."
             )
 
             st.exception(e)
-
-
-# ============================================================
-# STUDENT
-# ============================================================
-
-else:
-
-    st.header("🎓 Student Stress Analysis")
-
-    st.info(
-        "This section uses the student stress model "
-        "developed earlier in the MindPulse project."
-    )
-
-    try:
-
-        student_model, student_features = load_student_model()
-
-        st.write(
-            "Student model loaded successfully."
-        )
-
-        st.write(
-            "Expected features:"
-        )
-
-        st.write(student_features)
-
-        st.warning(
-            "The student input interface will be added after "
-            "we verify the exact feature names stored in "
-            "student_features.pkl."
-        )
-
-    except Exception as e:
-
-        st.error(
-            "Student model could not be loaded."
-        )
-
-        st.exception(e)
 
 
 # ============================================================
@@ -584,6 +994,5 @@ else:
 st.divider()
 
 st.caption(
-    "MindPulse • Machine Learning Based Mental Health "
-    "and Behavioral Risk Analysis"
+    "MindPulse | Machine Learning Mental Health & Stress Analysis"
 )
